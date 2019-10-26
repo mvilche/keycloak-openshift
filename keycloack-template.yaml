@@ -327,7 +327,7 @@
 
   - apiVersion: v1
     data:
-      keycloack-add-user.json: |-
+      keycloak-add-user.json: |-
         [ {
           "realm" : "master",
           "users" : [ {
@@ -342,7 +342,7 @@
             } ],
             "realmRoles" : [ "admin" ]
          } ]
-                 
+
       standalone.conf: |-
         if [ "x$JBOSS_MODULES_SYSTEM_PKGS" = "x" ]; then
           JBOSS_MODULES_SYSTEM_PKGS="org.jboss.byteman"
