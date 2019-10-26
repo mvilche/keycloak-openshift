@@ -88,6 +88,10 @@
               volumeMounts:
                 - mountPath: /opt/keycloak/standalone/configuration/custom/
                   name: configmap-1
+          initContainers:
+          - name: init-myservice
+            image: busybox
+            command: ['sh', '-c', 'until nslookup mysql; do echo waiting for mysql; sleep 5; done;']
           dnsPolicy: ClusterFirst
           restartPolicy: Always
           schedulerName: default-scheduler
@@ -323,6 +327,22 @@
 
   - apiVersion: v1
     data:
+      keycloack-add-user.json: |-
+        [ {
+          "realm" : "master",
+          "users" : [ {
+            "username" : "admin",
+            "enabled" : true,
+            "credentials" : [ {
+              "type" : "password",
+              "hashedSaltedValue" : "M5wkIMjaHEIu4u8nyaFXNZxgEkwfvXRXs6XiJGHjjW8R2pwz+IKYd6mq5rmuelJQQgVIsCJUw/yJbmSKKDBdQg==",
+              "salt" : "6YNCk85QrkABnAm8yJa3OQ==",
+              "hashIterations" : 100000,
+              "algorithm" : "pbkdf2-sha256"
+            } ],
+            "realmRoles" : [ "admin" ]
+         } ]
+                 
       standalone.conf: |-
         if [ "x$JBOSS_MODULES_SYSTEM_PKGS" = "x" ]; then
           JBOSS_MODULES_SYSTEM_PKGS="org.jboss.byteman"
