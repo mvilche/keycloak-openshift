@@ -1,0 +1,40 @@
+#!/bin/bash -e
+#
+# S2I run script for the 'springboot-sti' image.
+# The run script executes the server that runs your application.
+#
+# For more information see the documentation:
+#	https://github.com/openshift/source-to-image/blob/master/docs/builder_image.md
+#
+
+export keycloak_DIR=/opt/keycloak
+export OPENJDK=8
+
+	echo "···································································································"
+	echo "MARTIN FABRIZZIO VILCHE - https://github.com/mvilche"
+	echo "···································································································"
+
+
+if [ -z "$TIMEZONE" ]; then
+	echo "···································································································"
+	echo "VARIABLE TIMEZONE NO SETEADA - INICIANDO CON VALORES POR DEFECTO"
+	echo "POSIBLES VALORES: America/Montevideo | America/El_Salvador"
+	echo "···································································································"
+else
+	echo "···································································································"
+	echo "TIMEZONE SETEADO ENCONTRADO: " $TIMEZONE
+	echo "···································································································"
+	cat /usr/share/zoneinfo/$TIMEZONE > /etc/localtime && \
+	echo $TIMEZONE > /etc/timezone
+fi
+
+	echo "···································································································"
+	echo "INICIANDO APP..."
+	echo "···································································································"
+
+
+cat $keycloak_DIR/standalone/configuration/custom/standalone.conf > $keycloak_DIR/bin/standalone.conf
+cat $keycloak_DIR/standalone/configuration/custom/standalone.xml > $keycloak_DIR/standalone/configuration/standalone.xml
+keytool -genkey -keyalg RSA -alias selfsigned -keystore $keycloak_DIR/jolokia.jks -storepass password -validity 360 -keysize 2048 -dname "cn=jolokia, ou=jolokia, o=jolokia, c=jolokia"
+rm -rf $keycloak_DIR/standalone/tmp $keycloak_DIR/standalone/data $keycloak_DIR/standalone/logs $keycloak_DIR/standalone/deployments/*.deployed
+exec $keycloak_DIR/bin/standalone.sh -c standalone.xml -b 0.0.0.0
