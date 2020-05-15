@@ -10,12 +10,11 @@
       openshift.io/display-name: "keycloak-mvilche"
       iconClass: "icon-github"
       description: >-
-        keycloak s2i images + openjdk + Maven + jolokia
+        keycloak s2i images + openjdk + jolokia
       openshift.io/provider-display-name: "Martin Fabrizzio Vilche"
       openshift.io/documentation-url: "https://github.com/mvilche/keycloak-openshift.git"
       openshift.io/support-url: "https://github.com/mvilche/keycloak-openshift.git"
   message: >-
-    Eliga la version de keycloak y Openjdk que desea utilizar
     La conexion a la base de datos podra ser realizada en el standalone.xml disponible en los configmaps
 
   objects:
@@ -49,7 +48,7 @@
             deploymentconfig: keycloak
         spec:
           containers:
-            - image: "keycloak:7.0.1"
+            - image: "keycloak:10.0.0"
               imagePullPolicy: Always
               name: keycloak
               ports:
@@ -79,7 +78,7 @@
               resources:
                 requests:
                   cpu: 500m
-                  memory: 1Gi
+                  memory: 512Mi
                 limits:
                   cpu: 1
                   memory: 2Gi
@@ -88,10 +87,6 @@
               volumeMounts:
                 - mountPath: /opt/keycloak/standalone/configuration/custom/
                   name: configmap-1
-          initContainers:
-          - name: init-myservice
-            image: busybox
-            command: ['sh', '-c', 'until nslookup mysql; do echo waiting for mysql; sleep 5; done;']
           dnsPolicy: ClusterFirst
           restartPolicy: Always
           schedulerName: default-scheduler
@@ -110,7 +105,7 @@
               - keycloak
             from:
               kind: ImageStreamTag
-              name: "keycloak:7.0.1"
+              name: "keycloak:10.0.0"
           type: ImageChange
 
 
@@ -178,7 +173,7 @@
       output:
         to:
           kind: ImageStreamTag
-          name: 'keycloak:7.0.1'
+          name: 'keycloak:10.0.0'
       postCommit: {}
       resources: {}
       runPolicy: Serial
@@ -194,135 +189,6 @@
       successfulBuildsHistoryLimit: 5
       triggers:
         - type: ConfigChange
-
-  - apiVersion: v1
-    kind: DeploymentConfig
-    metadata:
-      labels:
-        app: keycloak-integration
-      name: mysql
-    spec:
-      replicas: 1
-      selector:
-        app: keycloak-integration
-        deploymentconfig: mysql
-      strategy:
-        activeDeadlineSeconds: 21600
-        resources: {}
-        type: Recreate
-      template:
-        metadata:
-          labels:
-            app: keycloak-integration
-            deploymentconfig: mysql
-        spec:
-          containers:
-            - env:
-                - name: MYSQL_USER
-                  value: keycloak
-                - name: MYSQL_PASSWORD
-                  value: keycloak
-                - name: MYSQL_DATABASE
-                  value: keycloak
-              image: mysql:5.7
-              imagePullPolicy: Always
-              name: mysql
-              ports:
-                - containerPort: 3009
-                  protocol: TCP
-              readinessProbe:
-                exec:
-                  command:
-                  - /bin/sh
-                  - -i
-                  - -c
-                  - mysql -h 127.0.0.1 -u $MYSQL_USER -p$MYSQL_PASSWORD -D keycloak -e 'SELECT 1'
-                failureThreshold: 3
-                initialDelaySeconds: 60
-                periodSeconds: 10
-                successThreshold: 1
-                timeoutSeconds: 1
-              resources:
-                limits:
-                  memory: 256Mi
-              terminationMessagePath: /dev/termination-log
-              terminationMessagePolicy: File
-              volumeMounts:
-                - mountPath: /var/lib/mysql/data
-                  name: mysql-1
-                  subPath: mysql
-          dnsPolicy: ClusterFirst
-          restartPolicy: Always
-          schedulerName: default-scheduler
-          securityContext: {}
-          terminationGracePeriodSeconds: 30
-          volumes:
-            - name: mysql-1
-              persistentVolumeClaim:
-                claimName: keycloak-data
-      test: false
-      triggers:
-        - type: ConfigChange
-        - imageChangeParams:
-            automatic: true
-            containerNames:
-              - mysql
-            from:
-              kind: ImageStreamTag
-              name: 'mysql:5.7'
-          type: ImageChange
-
-
-
-  - apiVersion: v1
-    kind: Service
-    metadata:
-      labels:
-        app: keycloak-integration
-      name: mysql
-    spec:
-      ports:
-        - name: tcp
-          port: 3306
-          protocol: TCP
-          targetPort: 3306
-      selector:
-        app: keycloak-integration
-        deploymentconfig: mysql
-      sessionAffinity: None
-      type: ClusterIP
-
-
-
-
-
-  - apiVersion: v1
-    kind: ImageStream
-    metadata:
-        name: mysql
-    spec:
-        tags:
-          - name: '5.7'
-            from:
-                kind: DockerImage
-                name: centos/mysql-57-centos7
-
-
-  - apiVersion: v1
-    kind: PersistentVolumeClaim
-    metadata:
-      finalizers:
-      - kubernetes.io/pvc-protection
-      name: keycloak-data
-    spec:
-      accessModes:
-      - ReadWriteOnce
-      resources:
-        requests:
-          storage: 50Gi
-
-
-
 
 
   - apiVersion: v1
@@ -344,23 +210,93 @@
          } ]
 
       standalone.conf: |-
+        ## -*- shell-script -*- ######################################################
+        ##                                                                          ##
+        ##  WildFly bootstrap Script Configuration                                    ##
+        ##                                                                          ##
+        ##############################################################################
+
+        #
+        # This file is optional; it may be removed if not needed.
+        #
+
+        #
+        # Specify the maximum file descriptor limit, use "max" or "maximum" to use
+        # the default, as queried by the system.
+        #
+        # Defaults to "maximum"
+        #
+        #MAX_FD="maximum"
+
+        #
+        # Specify the profiler configuration file to load.
+        #
+        # Default is to not load profiler configuration file.
+        #
+        #PROFILER=""
+
+        #
+        # Specify the location of the Java home directory.  If set then $JAVA will
+        # be defined to $JAVA_HOME/bin/java, else $JAVA will be "java".
+        #
+        #JAVA_HOME="/opt/java/jdk"
+
+        # tell linux glibc how many memory pools can be created that are used by malloc
+        # MALLOC_ARENA_MAX="5"
+
+        #
+        # Specify the exact Java VM executable to use.
+        #
+        #JAVA=""
+
         if [ "x$JBOSS_MODULES_SYSTEM_PKGS" = "x" ]; then
           JBOSS_MODULES_SYSTEM_PKGS="org.jboss.byteman"
         fi
+
+        # Uncomment the following line to prevent manipulation of JVM options
+        # by shell scripts.
+        #
+        #PRESERVE_JAVA_OPTS=true
+
+        #
+        # Specify options to pass to the Java VM.
+        #
         if [ "x$JAVA_OPTS" = "x" ]; then
-
-          if [ "$OPENJDK" == 8 ]; then
-          JAVA_OPTS="-XX:MaxRAMFraction=1 -XX:+UnlockExperimentalVMOptions -javaagent:/usr/libexec/s2i/jolokia-jvm-1.6.2-agent.jar=host=0.0.0.0,protocol=https,keystore=$JBOSS_HOME/jolokia.jks,keystorePassword=password -Dfile.encoding=UTF8 -XX:+ExitOnOutOfMemoryError -Djava.net.preferIPv4Stack=true"
+          JAVA_OPTS="-javaagent:/usr/libexec/s2i/jolokia-jvm-1.6.2-agent.jar=host=0.0.0.0,protocol=https,keystore=$JBOSS_HOME/jolokia.jks,keystorePassword=password -XX:+UseContainerSupport -XX:MaxRAMPercentage=90.0 -Dfile.encoding=UTF8 -XX:+ExitOnOutOfMemoryError -Djava.net.preferIPv4Stack=true"
           JAVA_OPTS="$JAVA_OPTS -Djboss.modules.system.pkgs=$JBOSS_MODULES_SYSTEM_PKGS -Djava.awt.headless=true"
-          fi
-
-          if [ "$OPENJDK" == 11 ]; then
-          JAVA_OPTS="-javaagent:/usr/libexec/s2i/jolokia-jvm-1.6.2-agent.jar=host=0.0.0.0,protocol=https,keystore=$JBOSS_HOME/jolokia.jks,keystorePassword=password -Dfile.encoding=UTF8 -XX:+ExitOnOutOfMemoryError -Djava.net.preferIPv4Stack=true"
-          JAVA_OPTS="$JAVA_OPTS -Djboss.modules.system.pkgs=$JBOSS_MODULES_SYSTEM_PKGS -Djava.awt.headless=true"
-          fi
         else
           echo "JAVA_OPTS already set in environment; overriding default settings with values: $JAVA_OPTS"
         fi
+
+        # Sample JPDA settings for remote socket debugging
+        #JAVA_OPTS="$JAVA_OPTS -agentlib:jdwp=transport=dt_socket,address=8787,server=y,suspend=n"
+
+        # Sample JPDA settings for shared memory debugging
+        #JAVA_OPTS="$JAVA_OPTS -agentlib:jdwp=transport=dt_shmem,server=y,suspend=n,address=jboss"
+
+        # Uncomment to not use JBoss Modules lockless mode
+        #JAVA_OPTS="$JAVA_OPTS -Djboss.modules.lockless=false"
+
+        # Uncomment to gather JBoss Modules metrics
+        #JAVA_OPTS="$JAVA_OPTS -Djboss.modules.metrics=true"
+
+        # Uncomment to enable the experimental JDK 11 support for ByteBuddy
+        # ByteBuddy is the default bytecode provider of Hibernate ORM
+        #JAVA_OPTS="$JAVA_OPTS -Dnet.bytebuddy.experimental=true"
+
+        # Uncomment this to run with a security manager enabled
+        # SECMGR="true"
+
+        # Uncomment this in order to be able to run WildFly on FreeBSD
+        # when you get "epoll_create function not implemented" message in dmesg output
+        #JAVA_OPTS="$JAVA_OPTS -Djava.nio.channels.spi.SelectorProvider=sun.nio.ch.PollSelectorProvider"
+
+        # Uncomment this out to control garbage collection logging
+        # GC_LOG="true"
+
+        # Uncomment and edit to use a custom java.security file to override all the Java security properties
+        #JAVA_OPTS="$JAVA_OPTS -Djava.security.properties==/path/to/custom/java.security"
+
       standalone.xml: |-
         <?xml version='1.0' encoding='UTF-8'?>
 
@@ -449,7 +385,7 @@
                 </access-control>
             </management>
             <profile>
-                <subsystem xmlns="urn:jboss:domain:logging:7.0">
+                <subsystem xmlns="urn:jboss:domain:logging:8.0">
                     <console-handler name="CONSOLE">
                         <level name="INFO"/>
                         <formatter>
@@ -493,35 +429,37 @@
                 <subsystem xmlns="urn:jboss:domain:bean-validation:1.0"/>
                 <subsystem xmlns="urn:jboss:domain:core-management:1.0"/>
                 <subsystem xmlns="urn:jboss:domain:datasources:5.0">
-                    <datasources>
-                        <datasource jndi-name="java:/jboss/datasources/KeycloakDS" pool-name="KeycloakDS" enabled="true">
-                            <connection-url>jdbc:mysql://mysql:3306/keycloak?useSSL=false&amp;characterEncoding=UTF-8</connection-url>
-                            <driver>mysql</driver>
-                            <pool>
-                                <min-pool-size>5</min-pool-size>
-                                <max-pool-size>15</max-pool-size>
-                            </pool>
-                            <security>
-                                <user-name>keycloak</user-name>
-                                <password>keycloak</password>
-                            </security>
-                            <validation>
-                                <valid-connection-checker class-name="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLValidConnectionChecker"/>
-                                <validate-on-match>true</validate-on-match>
-                                <exception-sorter class-name="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLExceptionSorter"/>
-                            </validation>
-                        </datasource>
+            <datasources>
+                <datasource jndi-name="java:/jboss/datasources/KeycloakDS" pool-name="KeycloakDS" enabled="true">
+                    <connection-url>jdbc:postgresql://localhost/keycloak</connection-url>
+                    <driver>postgresql</driver>
+                    <pool>
+                        <min-pool-size>5</min-pool-size>
+                        <max-pool-size>15</max-pool-size>
+                    </pool>
+                    <security>
+                        <user-name>keycloak</user-name>
+                        <password>keycloak</password>
+                    </security>
+                    <validation>
+                        <valid-connection-checker class-name="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLValidConnectionChecker"/>
+                        <validate-on-match>true</validate-on-match>
+                        <exception-sorter class-name="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLExceptionSorter"/>
+                    </validation>
+                </datasource>
                         <drivers>
                             <driver name="mysql" module="com.mysql.jdbc">
                                 <xa-datasource-class>com.mysql.jdbc.jdbc2.optional.MysqlXADataSource</xa-datasource-class>
                             </driver>
+                            <driver name="postgresql" module="org.postgresql.jdbc">
+                                <xa-datasource-class>org.postgresql.xa.PGXADataSource</xa-datasource-class>
                         </drivers>
-                    </datasources>
+            </datasources>
                 </subsystem>
                 <subsystem xmlns="urn:jboss:domain:deployment-scanner:2.0">
                     <deployment-scanner path="deployments" relative-to="jboss.server.base.dir" scan-interval="5000" runtime-failure-causes-rollback="${jboss.deployment.scanner.rollback.on.failure:false}"/>
                 </subsystem>
-                <subsystem xmlns="urn:jboss:domain:ee:4.0">
+                <subsystem xmlns="urn:jboss:domain:ee:5.0">
                     <spec-descriptor-property-replacement>false</spec-descriptor-property-replacement>
                     <concurrent>
                         <context-services>
@@ -538,7 +476,7 @@
                         </managed-scheduled-executor-services>
                     </concurrent>
                 </subsystem>
-                <subsystem xmlns="urn:jboss:domain:ejb3:5.0">
+                <subsystem xmlns="urn:jboss:domain:ejb3:6.0">
                     <session-bean>
                         <stateless>
                             <bean-instance-pool-ref pool-name="slsb-strict-max-pool"/>
@@ -573,7 +511,7 @@
                     <thread-pools>
                         <thread-pool name="default">
                             <max-threads count="10"/>
-                            <keepalive-time time="100" unit="milliseconds"/>
+                            <keepalive-time time="60" unit="seconds"/>
                         </thread-pool>
                     </thread-pools>
                     <default-security-domain value="other"/>
@@ -585,7 +523,7 @@
                     <worker name="default"/>
                     <buffer-pool name="default"/>
                 </subsystem>
-                <subsystem xmlns="urn:jboss:domain:infinispan:8.0">
+                <subsystem xmlns="urn:jboss:domain:infinispan:9.0">
                     <cache-container name="keycloak">
                         <local-cache name="realms">
                             <object-memory size="10000"/>
@@ -648,7 +586,7 @@
                         <local-cache name="timestamps"/>
                     </cache-container>
                 </subsystem>
-                <subsystem xmlns="urn:jboss:domain:jaxrs:1.0"/>
+                <subsystem xmlns="urn:jboss:domain:jaxrs:2.0"/>
                 <subsystem xmlns="urn:jboss:domain:jca:5.0">
                     <archive-validation enabled="true" fail-on-error="true" fail-on-warn="false"/>
                     <bean-validation enabled="true"/>
@@ -695,7 +633,7 @@
                         </maximum-set>
                     </deployment-permissions>
                 </subsystem>
-                <subsystem xmlns="urn:wildfly:elytron:7.0" final-providers="combined-providers" disallowed-providers="OracleUcrypto">
+                <subsystem xmlns="urn:wildfly:elytron:9.0" final-providers="combined-providers" disallowed-providers="OracleUcrypto">
                     <providers>
                         <aggregate-providers name="combined-providers">
                             <providers name="elytron"/>
@@ -839,9 +777,9 @@
                 </subsystem>
                 <subsystem xmlns="urn:jboss:domain:weld:4.0"/>
                 <subsystem xmlns="urn:wildfly:microprofile-config-smallrye:1.0"/>
-                <subsystem xmlns="urn:wildfly:microprofile-health-smallrye:1.0" security-enabled="false"/>
+                <subsystem xmlns="urn:wildfly:microprofile-health-smallrye:2.0" security-enabled="false" empty-liveness-checks-status="${env.MP_HEALTH_EMPTY_LIVENESS_CHECKS_STATUS:UP}" empty-readiness-checks-status="${env.MP_HEALTH_EMPTY_READINESS_CHECKS_STATUS:UP}"/>
                 <subsystem xmlns="urn:wildfly:microprofile-metrics-smallrye:2.0" security-enabled="false" exposed-subsystems="*" prefix="${wildfly.metrics.prefix:wildfly}"/>
-                <subsystem xmlns="urn:jboss:domain:undertow:9.0" default-server="default-server" default-virtual-host="default-host" default-servlet-container="default" default-security-domain="other" statistics-enabled="${wildfly.undertow.statistics-enabled:${wildfly.statistics-enabled:false}}">
+                <subsystem xmlns="urn:jboss:domain:undertow:10.0" default-server="default-server" default-virtual-host="default-host" default-servlet-container="default" default-security-domain="other" statistics-enabled="${wildfly.undertow.statistics-enabled:${wildfly.statistics-enabled:false}}">
                     <buffer-cache name="default"/>
                     <server name="default-server">
                         <http-listener name="default" socket-binding="http" redirect-socket="https" enable-http2="true"/>
@@ -895,7 +833,7 @@
                         <provider name="default" enabled="true">
                             <properties>
                                 <property name="dataSource" value="java:jboss/datasources/KeycloakDS"/>
-                                <property name="initializeEmpty" value="true"/>
+                                <property name="initializeEmpty" value="false"/>
                                 <property name="migrationStrategy" value="update"/>
                                 <property name="migrationExport" value="${jboss.home.dir}/keycloak-database-update.sql"/>
                             </properties>
@@ -928,12 +866,11 @@
                         <provider name="default" enabled="true"/>
                     </spi>
                     <spi name="hostname">
-                        <default-provider>request</default-provider>
-                        <provider name="fixed" enabled="true">
+                        <default-provider>default</default-provider>
+                        <provider name="default" enabled="true">
                             <properties>
-                                <property name="hostname" value="localhost"/>
-                                <property name="httpPort" value="-1"/>
-                                <property name="httpsPort" value="-1"/>
+                                <property name="frontendUrl" value="${keycloak.frontendUrl:}"/>
+                                <property name="forceBackendUrlToFrontendUrl" value="false"/>
                             </properties>
                         </provider>
                     </spi>
@@ -948,11 +885,11 @@
                 </interface>
             </interfaces>
             <socket-binding-group name="standard-sockets" default-interface="public" port-offset="${jboss.socket.binding.port-offset:0}">
-                <socket-binding name="management-http" interface="management" port="${jboss.management.http.port:9990}"/>
-                <socket-binding name="management-https" interface="management" port="${jboss.management.https.port:9993}"/>
                 <socket-binding name="ajp" port="${jboss.ajp.port:8009}"/>
                 <socket-binding name="http" port="${jboss.http.port:8080}"/>
                 <socket-binding name="https" port="${jboss.https.port:8443}"/>
+                <socket-binding name="management-http" interface="management" port="${jboss.management.http.port:9990}"/>
+                <socket-binding name="management-https" interface="management" port="${jboss.management.https.port:9993}"/>
                 <socket-binding name="txn-recovery-environment" port="4712"/>
                 <socket-binding name="txn-status-manager" port="4713"/>
                 <outbound-socket-binding name="mail-smtp">

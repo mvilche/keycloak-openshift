@@ -1,6 +1,6 @@
-FROM alpine:3.10
+FROM alpine:3.11
 
-ENV JDK_VERSION=openjdk8
+ENV JDK_VERSION=openjdk11-jre
 
 LABEL autor="Martin Vilche <mfvilche@gmail.com>" \
       io.k8s.description="Runtime image jdk alpine" \
@@ -12,7 +12,7 @@ LABEL autor="Martin Vilche <mfvilche@gmail.com>" \
 
 RUN apk add --update --no-cache $JDK_VERSION wget curl bash tzdata busybox-extras
 
-RUN mkdir -p /opt/keycloak && wget https://downloads.jboss.org/keycloak/7.0.1/keycloak-7.0.1.tar.gz --progress=bar:force -O /tmp/keycloak.tar.gz && \
+RUN mkdir -p /opt/keycloak && wget https://downloads.jboss.org/keycloak/10.0.1/keycloak-10.0.1.tar.gz --progress=bar:force -O /tmp/keycloak.tar.gz && \
 tar zxvf /tmp/keycloak.tar.gz -C /opt/keycloak --strip-components 1 && mkdir -p /opt/keycloak/standalone/configuration/custom && rm -rf /tmp/keycloak.tar.gz
 
 COPY s2i/bin/run /usr/libexec/s2i/run

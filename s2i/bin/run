@@ -8,7 +8,7 @@
 #
 
 export keycloak_DIR=/opt/keycloak
-export OPENJDK=8
+export OPENJDK=11
 
 	echo "···································································································"
 	echo "MARTIN FABRIZZIO VILCHE - https://github.com/mvilche"
