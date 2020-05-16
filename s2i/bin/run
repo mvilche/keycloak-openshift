@@ -36,7 +36,5 @@ fi
 cat $keycloak_DIR/standalone/configuration/custom/standalone.conf > $keycloak_DIR/bin/standalone.conf
 cat $keycloak_DIR/standalone/configuration/custom/standalone.xml > $keycloak_DIR/standalone/configuration/standalone.xml
 cat $keycloak_DIR/standalone/configuration/custom/keycloak-add-user.json > $keycloak_DIR/standalone/configuration/keycloak-add-user.json
-cat $keycloak_DIR/standalone/configuration/custom/keycloak-add-user.json > $keycloak_DIR/standalone/configuration/keycloak-add-realm.json
 keytool -genkey -keyalg RSA -alias selfsigned -keystore $keycloak_DIR/jolokia.jks -storepass password -validity 360 -keysize 2048 -dname "cn=jolokia, ou=jolokia, o=jolokia, c=jolokia"
-rm -rf $keycloak_DIR/standalone/tmp $keycloak_DIR/standalone/data $keycloak_DIR/standalone/logs $keycloak_DIR/standalone/deployments/*.deployed
 exec $keycloak_DIR/bin/standalone.sh -c standalone.xml -b 0.0.0.0
